@@ -214,7 +214,7 @@ routes, [pattern-match](#match) on request structure, and finally adapt them
 
 ### Request
 
-Every handler is a `ƒ(request) -> response`. By default, it passes the Koa
+Every handler is a `ƒ(request) -> response`. By default, it receives the Koa
 request (see [reference](http://koajs.com/#request)). Handlers pass requests
 to each other:
 
@@ -343,12 +343,12 @@ When the pattern doesn't match, this runs the next handler.
 ```js
 const {match} = require('koa-ring')
 
-const filtered = match({url: /^api[/]echo/, method: 'POST'}, middleware)
+const filtered = match({url: /^[/]?api[/]echo/, method: 'POST'}, middleware)
 ```
 
 ### Futures
 
-See [motivation](#cancelation) for futures support.
+See [motivation](#cancelation) for supporting futures.
 
 To use `koa-ring` with Posterus futures and coroutines, use `toKoaMiddleware`
 from the optional `koa-ring/posterus` module.
