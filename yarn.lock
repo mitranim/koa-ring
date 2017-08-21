@@ -395,9 +395,9 @@ flat-cache@^1.2.1:
     graceful-fs "^4.1.2"
     write "^0.2.1"
 
-fpx@^0.2.1:
-  version "0.2.1"
-  resolved "https://registry.yarnpkg.com/fpx/-/fpx-0.2.1.tgz#e312ceb1ee416afc2bd8671ac88913973ee781cd"
+fpx@^0.3.0:
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/fpx/-/fpx-0.3.0.tgz#3ac5c5cdecb5b7dd8d6f92889f1356a4d388eb2b"
 
 fs.realpath@^1.0.0:
   version "1.0.0"
@@ -683,9 +683,9 @@ pluralize@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/pluralize/-/pluralize-4.0.0.tgz#59b708c1c0190a2f692f1c7618c446b052fd1762"
 
-posterus@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/posterus/-/posterus-0.0.6.tgz#26938a040ae125b0e70c161cbccdddd3e33492fd"
+posterus@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/posterus/-/posterus-0.1.0.tgz#0f2fb53ba068cb77016691c4b3d60fa2df716b53"
   dependencies:
     fastqueue "^0.1.0"
 

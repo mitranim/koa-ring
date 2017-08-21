@@ -154,7 +154,7 @@ function* koaRingHandler(request) {
 function expensiveFuture(...args) {
   return Future.init(future => {
     const operationId = expensiveOperation(...args, (error, result) => {
-      future.arrive(error, result)
+      future.settle(error, result)
     })
     return function onDeinit() {
       cancelOperation(operationId)

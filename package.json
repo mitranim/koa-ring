@@ -1,6 +1,6 @@
 {
   "name": "koa-ring",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Write Koa middleware as ƒ(request) -> response, like in Clojure/Ring. Supports automatic work cancelation via Posterus futures and coroutines. Comes with routing/mounting utilities out of the box.",
   "license": "MIT",
   "keywords": [
@@ -13,8 +13,8 @@
     "cancelation"
   ],
   "dependencies": {
-    "posterus": "^0.0.7",
-    "fpx": "^0.2.1"
+    "posterus": "^0.1.0",
+    "fpx": "^0.3.0"
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",

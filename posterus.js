@@ -27,8 +27,8 @@ function* runNextKoaMiddleware(request) {
 function promiseToFuture(promise) {
   return Future.init(future => {
     promise.then(
-      result => future.arrive(null, result),
-      error => future.arrive(error)
+      result => future.settle(null, result),
+      error => future.settle(error)
     )
   })
 }
