@@ -1,9 +1,19 @@
 'use strict'
 
-const {isObject, isFunction, validate} = require('fpx')
+const {isObject, isFunction, validate, validateEach} = require('fpx')
 const {Future, isFuture} = require('posterus')
 const {routine} = require('posterus/routine')
-const {toHandler, toPlainResponse, updateKoaResponse, quietExtend} = require('./index')
+const index = require('./index')
+const {toHandler, toPlainResponse, updateKoaResponse, quietExtend} = index
+
+exports.pipeline = pipeline
+function pipeline(funs) {
+  validateEach(isFunction, funs)
+  return function* asyncPipeline(value) {
+    for (const fun of funs) value = yield fun(value)
+    return value
+  }
+}
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(middleware) {

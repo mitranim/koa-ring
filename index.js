@@ -16,6 +16,15 @@ function compose(middlewares) {
   }
 }
 
+exports.pipeline = pipeline
+function pipeline(funs) {
+  validateEach(isFunction, funs)
+  return async function asyncPipeline(value) {
+    for (const fun of funs) value = await fun(value)
+    return value
+  }
+}
+
 // Special-cased for nicer error messages.
 exports.toHandler = toHandler
 function toHandler(nextHandler, middleware) {
@@ -40,7 +49,7 @@ function toKoaMiddleware(middleware) {
 
 exports.toPlainResponse = toPlainResponse
 function toPlainResponse(response) {
-  if (!isResponseDefined(response)) return null
+  if (!isResponseSettled(response)) return null
   const {status, headers, body} = response
   return {status, headers, body}
 }
@@ -73,6 +82,9 @@ function mount(path, middleware) {
     const handler = toHandler(next, middleware)
 
     return function mountedHandler(request) {
+      if (!isString(request.url)) {
+        throw Error(`Expected request URL to be a string, got: ${request.url}`)
+      }
       const urlSegments = splitPath(request.url)
 
       return testBy(segmentsTest, urlSegments)
@@ -105,7 +117,7 @@ async function runNextKoaMiddleware(request) {
   return null
 }
 
-function isResponseDefined({status, body}) {
+function isResponseSettled({status, body}) {
   return (isFinite(status) && status !== 404) || Boolean(body)
 }
 

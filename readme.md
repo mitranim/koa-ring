@@ -21,6 +21,7 @@ Includes support for basic routing and pattern-matching.
     * [Request](#request)
     * [Response](#response)
     * [`compose`](#compose)
+    * [`pipeline`](#pipeline)
     * [`toKoaMiddleware`](#tokoamiddleware)
     * [`mount`](#mount)
     * [`match`](#match)
@@ -280,6 +281,29 @@ const second = () => request => ({body: request.body})
 const middleware = compose([first, second])
 ```
 
+### `pipeline`
+
+Combines multiple async functions, such as request handlers, into one function
+that will invoke them left-to-right. Useful for composing request handlers with
+functions that transform request or response, without having to write those
+functions as middleware.
+
+```js
+const {pipeline, extend} = require('koa-ring')
+
+const transformRequest = async request => extend(request, {body: 'overwritten body'})
+
+const transformResponse => async response => extend(response, {status: 412})
+
+const middleware = next => pipeline([transformRequest, next, transformResponse])
+```
+
+Import the future-based version from `koa-ring/posterus`:
+
+```js
+const {pipeline} = require('koa-ring/posterus')
+```
+
 ### `toKoaMiddleware`
 
 Adapts a `koa-ring` middleware to be plugged into Koa. You should compose your
@@ -299,6 +323,12 @@ const echo = request => request
 const echoMiddleware = () => echo
 
 app.use(toKoaMiddleware(echoMiddleware))
+```
+
+Import the future-based version from `koa-ring/posterus`:
+
+```js
+const {toKoaMiddleware} = require('koa-ring/posterus')
 ```
 
 ### `mount`
@@ -352,13 +382,13 @@ const filtered = match({url: /^[/]?api[/]echo/, method: 'POST'}, middleware)
 
 See [motivation](#cancelation) for supporting futures.
 
-To use `koa-ring` with Posterus futures and coroutines, use `toKoaMiddleware`
-from the optional `koa-ring/posterus` module.
+To use `koa-ring` with Posterus futures and coroutines, some functions must be
+imported from the optional `koa-ring/posterus` module.
 
 ```js
 const Koa = require('koa')
-const {compose} = require('koa-ring')
-const {toKoaMiddleware} = require('koa-ring/posterus')
+const {compose, /* ... */} = require('koa-ring')
+const {toKoaMiddleware, pipeline} = require('koa-ring/posterus')
 
 const app = new Koa()
 
