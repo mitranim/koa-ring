@@ -227,11 +227,13 @@ function middleware(nextHandler) {
 ```
 
 When overriding request fields (for instance, when mounting on a different URL
-or adding new fields), use `Object.create`:
+or adding new fields), use `extend`, which is a shortcut for `Object.create`:
 
 ```js
-const middleware = next => request => next(Object.create(request, {
-  url: {value: request.url.replace(/^api/, '')}
+const {extend} = require('koa-ring')
+
+const middleware = next => request => next(extend(request, {
+  url: request.url.replace(/^api/, ''),
 }))
 ```
 

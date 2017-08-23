@@ -1,7 +1,11 @@
 'use strict'
 
-const {testBy, slice, isFunction, isString, isList, isFinite, isObject,
+const {testBy, slice, mapDict, isFunction, isString, isList, isFinite, isObject,
   validate, validateEach} = require('fpx')
+
+/**
+ * Public
+ */
 
 exports.compose = compose
 function compose(middlewares) {
@@ -34,24 +38,11 @@ function toKoaMiddleware(middleware) {
   }
 }
 
-async function runNextKoaMiddleware(request) {
-  if (isObject(request) && request.nextKoaMiddleware) {
-    const {ctx, nextKoaMiddleware: next} = request
-    await next()
-    return toPlainResponse(ctx.response)
-  }
-  return null
-}
-
 exports.toPlainResponse = toPlainResponse
 function toPlainResponse(response) {
   if (!isResponseDefined(response)) return null
   const {status, headers, body} = response
   return {status, headers, body}
-}
-
-function isResponseDefined({status, body}) {
-  return (isFinite(status) && status !== 404) || Boolean(body)
 }
 
 exports.updateKoaResponse = updateKoaResponse
@@ -91,6 +82,28 @@ function mount(path, middleware) {
   }
 }
 
+exports.extend = extend
+function extend(proto, values) {
+  return Object.create(proto, mapDict(enumerableValueDescriptor, values))
+}
+
+/**
+ * Utils
+ */
+
+async function runNextKoaMiddleware(request) {
+  if (isObject(request) && request.nextKoaMiddleware) {
+    const {ctx, nextKoaMiddleware: next} = request
+    await next()
+    return toPlainResponse(ctx.response)
+  }
+  return null
+}
+
+function isResponseDefined({status, body}) {
+  return (isFinite(status) && status !== 404) || Boolean(body)
+}
+
 function splitPath(path) {
   validate(isString, path)
   return path.split('/').filter(Boolean)
@@ -98,4 +111,8 @@ function splitPath(path) {
 
 function drop(count, value) {
   return isList(value) ? slice(value, count) : []
+}
+
+function enumerableValueDescriptor(value) {
+  return {value, enumerable: true}
 }
