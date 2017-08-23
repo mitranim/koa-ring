@@ -3,13 +3,13 @@
 const {isObject, isFunction, validate} = require('fpx')
 const {Future, isFuture} = require('posterus')
 const {routine} = require('posterus/routine')
-const {toHandler, toPlainResponse, updateKoaResponse} = require('./index')
+const {toHandler, toPlainResponse, updateKoaResponse, quietExtend} = require('./index')
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(middleware) {
   const handler = toHandler(runNextKoaMiddleware, middleware)
   return async function koaMiddleware(ctx, next) {
-    const request = Object.create(ctx.request, {nextKoaMiddleware: {value: next}})
+    const request = quietExtend(ctx.request, {nextKoaMiddleware: next})
     const response = await tieToContextLifetime(ctx, toFuture(handler(request)))
     if (response) updateKoaResponse(ctx.response, response)
   }

@@ -268,10 +268,10 @@ Combines multiple middlewares into one middleware that will invoke them
 left-to-right.
 
 ```js
-const {compose} = require('koa-ring')
+const {compose, extend} = require('koa-ring')
 
 const first = next => request => {
-  request = Object.create(request, {body: {value: 'overwritten request body'}})
+  request = extend(request, {body: 'overwritten request body'})
   return next(request)
 }
 

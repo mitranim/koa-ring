@@ -32,7 +32,7 @@ exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(middleware) {
   const handler = toHandler(runNextKoaMiddleware, middleware)
   return async function koaMiddleware(ctx, next) {
-    const request = Object.create(ctx.request, {nextKoaMiddleware: {value: next}})
+    const request = quietExtend(ctx.request, {nextKoaMiddleware: next})
     const response = await handler(request)
     if (response) updateKoaResponse(ctx.response, response)
   }
@@ -76,7 +76,7 @@ function mount(path, middleware) {
       const urlSegments = splitPath(request.url)
 
       return testBy(segmentsTest, urlSegments)
-        ? handler(Object.create(request, {url: {value: drop(segmentsTest.length, urlSegments).join('/')}}))
+        ? handler(extend(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
         : next(request)
     }
   }
@@ -85,6 +85,11 @@ function mount(path, middleware) {
 exports.extend = extend
 function extend(proto, values) {
   return Object.create(proto, mapDict(enumerableValueDescriptor, values))
+}
+
+exports.quietExtend = quietExtend
+function quietExtend(proto, values) {
+  return Object.create(proto, mapDict(nonenumerableValueDescriptor, values))
 }
 
 /**
@@ -114,5 +119,9 @@ function drop(count, value) {
 }
 
 function enumerableValueDescriptor(value) {
-  return {value, enumerable: true}
+  return {value, configurable: true, enumerable: true}
+}
+
+function nonenumerableValueDescriptor(value) {
+  return {value, configurable: true, enumerable: false}
 }
