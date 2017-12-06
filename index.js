@@ -1,96 +1,43 @@
 'use strict'
 
 const {testBy, slice, mapDict, isFunction, isString, isList, isFinite, isObject,
-  validate, validateEach} = require('fpx')
+  validate} = require('fpx')
 
 /**
  * Public
  */
 
-exports.compose = compose
-function compose(middlewares) {
-  validateEach(isFunction, middlewares)
-  return function composedMiddleware(next) {
-    validate(isFunction, next)
-    return middlewares.reduceRight(toHandler, next)
-  }
-}
-
-exports.pipeline = pipeline
-function pipeline(funs) {
-  validateEach(isFunction, funs)
-  return async function asyncPipeline(value) {
-    for (const fun of funs) value = await fun(value)
-    return value
-  }
-}
-
-// Special-cased for nicer error messages.
-exports.toHandler = toHandler
-function toHandler(nextHandler, middleware) {
-  validate(isFunction, nextHandler)
-  validate(isFunction, middleware)
-  const handler = middleware(nextHandler)
-  if (!isFunction(handler)) {
-    throw Error(`Expected middleware to return handler function, got ${handler}`)
-  }
-  return handler
-}
-
 exports.toKoaMiddleware = toKoaMiddleware
-function toKoaMiddleware(middleware) {
-  const handler = toHandler(runNextKoaMiddleware, middleware)
+function toKoaMiddleware(handler) {
+  validate(isFunction, handler)
   return async function koaMiddleware(ctx, next) {
-    const request = quietExtend(ctx.request, {nextKoaMiddleware: next})
+    const request = quietExtend(ctx.request, {koaNext: next})
     const response = await handler(request)
-    if (response) updateKoaResponse(ctx.response, response)
+    if (!isContextSettled(ctx)) updateKoaContext(ctx, response)
   }
-}
-
-exports.toPlainResponse = toPlainResponse
-function toPlainResponse(response) {
-  if (!isResponseSettled(response)) return null
-  const {status, headers, body} = response
-  return {status, headers, body}
-}
-
-exports.updateKoaResponse = updateKoaResponse
-function updateKoaResponse(koaResponse, {status, headers, body}) {
-  if (isFinite(status)) koaResponse.status = status
-  if (isObject(headers)) for (const key in headers) koaResponse.set(key, headers[key])
-  koaResponse.body = body
 }
 
 exports.match = match
-function match(pattern, middleware) {
-  validate(isFunction, middleware)
-
-  return function matchMiddleware(next) {
-    const handler = toHandler(next, middleware)
-
-    return function matchHandler(request) {
-      return testBy(pattern, request) ? handler(request) : next(request)
-    }
+function match(pattern, handler) {
+  validate(isFunction, handler)
+  return function matchHandler(request) {
+    return testBy(pattern, request) ? handler(request) : undefined
   }
 }
 
 exports.mount = mount
-function mount(path, middleware) {
+function mount(path, handler) {
   const segmentsTest = isList(path) ? path : splitPath(path)
 
-  return function mountedMiddleware(next) {
-    const handler = toHandler(next, middleware)
-
-    return function mountedHandler(request) {
-      if (!isString(request.url)) {
-        throw Error(`Expected request URL to be a string, got: ${request.url}`)
-      }
-      const urlSegments = splitPath(request.url)
-
-      return testBy(segmentsTest, urlSegments)
-        ? handler(extend(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
-        : next(request)
+  return function mountedHandler(request) {
+    if (!isString(request.url)) {
+      throw Error(`Expected request URL to be a string, got: ${request.url}`)
     }
+    const urlSegments = splitPath(request.url)
+
+    return testBy(segmentsTest, urlSegments)
+      ? handler(extend(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
+      : undefined
   }
 }
 
@@ -104,22 +51,41 @@ function quietExtend(proto, values) {
   return Object.create(proto, mapDict(nonenumerableValueDescriptor, values))
 }
 
+exports.koaNext = koaNext
+async function koaNext(request) {
+  const {ctx, koaNext} = request || {}
+  if (ctx && koaNext) {
+    await koaNext()
+    return toPlainResponse(ctx)
+  }
+  return undefined
+}
+
+exports.toPlainResponse = toPlainResponse
+function toPlainResponse(ctx) {
+  if (!isContextSettled(ctx)) return undefined
+  const {response: {status, headers, body}} = ctx
+  return {status, headers, body}
+}
+
+exports.updateKoaContext = updateKoaContext
+function updateKoaContext(ctx, response) {
+  if (!response) return
+  const {response: res} = ctx
+  const {status, headers, body} = response
+  if (isFinite(status)) res.status = status
+  if (isObject(headers)) for (const key in headers) res.set(key, headers[key])
+  if (body != null) res.body = body
+}
+
+exports.isContextSettled = isContextSettled
+function isContextSettled(ctx) {
+  return !(ctx.status === 404 && ctx.body == null)
+}
+
 /**
  * Utils
  */
-
-async function runNextKoaMiddleware(request) {
-  if (isObject(request) && request.nextKoaMiddleware) {
-    const {ctx, nextKoaMiddleware: next} = request
-    await next()
-    return toPlainResponse(ctx.response)
-  }
-  return null
-}
-
-function isResponseSettled({status, body}) {
-  return (isFinite(status) && status !== 404) || Boolean(body)
-}
 
 function splitPath(path) {
   validate(isString, path)

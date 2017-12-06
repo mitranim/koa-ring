@@ -1,13 +1,8 @@
 ## Overview
 
-Adapter library for [Koa](http://koajs.com), a popular HTTP microframework for
-Node.js. Allows you to write Koa middleware as `ƒ(request) -> response`, similar
-to [Ring](https://github.com/ring-clojure/ring) in Clojure. See
-[motivation](#functional-programming).
+Adapter library for [Koa](http://koajs.com), a popular HTTP microframework for Node.js. Allows you to write Koa handlers as `ƒ(request) -> response`, similar to [Ring](https://github.com/ring-clojure/ring) in Clojure. See [motivation](#functional-programming).
 
-Includes optional support for implicit cancelation via
-[Posterus](https://github.com/Mitranim/posterus) futures and coroutines. See
-[motivation](#cancelation).
+Includes optional support for implicit cancelation via [Posterus](https://github.com/Mitranim/posterus) futures and coroutines. See [motivation](#cancelation).
 
 Includes support for basic routing and pattern-matching.
 
@@ -20,8 +15,6 @@ Includes support for basic routing and pattern-matching.
   * [API](#api)
     * [Request](#request)
     * [Response](#response)
-    * [`compose`](#compose)
-    * [`pipeline`](#pipeline)
     * [`toKoaMiddleware`](#tokoamiddleware)
     * [`mount`](#mount)
     * [`match`](#match)
@@ -39,15 +32,11 @@ Node:
 
 ```js
 const Koa = require('koa')
-const {compose, toKoaMiddleware} = require('koa-ring')
+const {toKoaMiddleware} = require('koa-ring')
 
 const app = new Koa()
 
-app.use(toKoaMiddleware(compose([
-  exampleMiddleware,
-  // ...
-  () => exampleHandler,
-])))
+app.use(toKoaMiddleware(exampleMiddleware(exampleHandler)))
 
 function exampleMiddleware(nextHandler) {
   return async function prevHandler(request) {
@@ -70,17 +59,11 @@ With cancelation support:
 
 ```js
 const Koa = require('koa')
-const {compose} = require('koa-ring')
 const {toKoaMiddleware} = require('koa-ring/posterus')
 
 const app = new Koa()
 
-app.use(toKoaMiddleware(compose([
-  next => request => next(request),
-  next => function* (request) {return next(request)},
-  // ...
-  next => handler,
-])))
+app.use(toKoaMiddleware(handler))
 
 function* handler(request) {
   // Could be a future-based database request, etc
@@ -100,11 +83,11 @@ In Koa, request handlers are imperative functions that take a request/response
 context object, return `void` and mutate the context to send the response.
 
 In other words, Koa is a poor match for the HTTP programming model, which lends
-itself to `ƒ(request) -> response`, to plain functions of request to response.
+itself to plain functions of `ƒ(request) -> response`.
 
 Advantages of `ƒ(request) -> response`:
 
-  * Easy to rewrite request and/or response at middleware level
+  * Easy to rewrite request and/or response at handler level
 
   * Lends itself to function composition
 
@@ -171,16 +154,9 @@ function* expensiveRoutine(...args) {
 }
 ```
 
-Lack of implicit cancelation leads to incorrect behavior. The client may wish to
-abort the work it has started; smart clients may cancel unnecessary requests to
-avoid wasting resources; and so on. Worse, this makes Node.js and Go servers
-uniquely vulnerable to a certain type of DoS attack: making the server start
-expensive work and immediately canceling the request to free the attacker's
-system resources, while the server keeps slogging.
+Lack of implicit cancelation leads to incorrect behavior. The client may wish to abort the work it has started; smart clients may cancel unnecessary requests to avoid wasting resources; and so on. Worse, this makes Node.js and Go servers uniquely vulnerable to a certain type of DoS attack: making the server start expensive work and immediately canceling the request to free the attacker's system resources, while the server keeps slogging.
 
-Fortunately, we can fix this. We have the technology for implicit ownerhip and
-cancelation in async operations
-([Posterus](https://github.com/Mitranim/posterus)).
+Fortunately, we can fix this. We have tools for implicit ownerhip and cancelation in async operations, such as [Posterus](https://github.com/Mitranim/posterus).
 
 ## API
 
@@ -209,7 +185,10 @@ const endware = () => handler
 The resulting handlers have a signature of `ƒ(request) -> response` and lend
 themselves to composition and functional transformations of requests/responses.
 
-`koa-ring` helps you [compose](#compose) middlewares, [mount](#mount) them on
+`koa-ring` doesn't provide any special tools for middleware. Wrap your handlers into middlewares before passing the final handler to `toKoaMiddleware`.
+
+
+`koa-ring` helps you [mount](#mount) handlers on
 routes, [pattern-match](#match) on request structure, and finally adapt them
 [to Koa middleware](#tokoamiddleware) to plug into Koa.
 
@@ -233,7 +212,7 @@ or adding new fields), use `extend`, which is a shortcut for `Object.create`:
 ```js
 const {extend} = require('koa-ring')
 
-const middleware = next => request => next(extend(request, {
+const transformMiddleware = next => request => next(extend(request, {
   url: request.url.replace(/^api/, ''),
 }))
 ```
@@ -251,8 +230,7 @@ following format:
 type Response = {status: number, headers: {}, body: any}
 ```
 
-Every field is optional. It's ok to return nothing; `koa-ring` will just run the
-next Koa middleware.
+Every field is optional. It's ok to return nothing; `koa-ring` will just run the next Koa middleware.
 
 Handlers may override each other's responses:
 
@@ -263,51 +241,9 @@ const middleware = next => async request => {
 }
 ```
 
-### `compose`
-
-Combines multiple middlewares into one middleware that will invoke them
-left-to-right.
-
-```js
-const {compose, extend} = require('koa-ring')
-
-const first = next => request => {
-  request = extend(request, {body: 'overwritten request body'})
-  return next(request)
-}
-
-const second = () => request => ({body: request.body})
-
-const middleware = compose([first, second])
-```
-
-### `pipeline`
-
-Combines multiple async functions, such as request handlers, into one function
-that will invoke them left-to-right. Useful for composing request handlers with
-functions that transform request or response, without having to write those
-functions as middleware.
-
-```js
-const {pipeline, extend} = require('koa-ring')
-
-const transformRequest = async request => extend(request, {body: 'overwritten body'})
-
-const transformResponse => async response => extend(response, {status: 412})
-
-const middleware = next => pipeline([transformRequest, next, transformResponse])
-```
-
-Import the future-based version from `koa-ring/posterus`:
-
-```js
-const {pipeline} = require('koa-ring/posterus')
-```
-
 ### `toKoaMiddleware`
 
-Adapts a `koa-ring` middleware to be plugged into Koa. You should compose your
-middlewares into one, then invoke `toKoaMiddleware` once per application.
+Adapts a `koa-ring` handler to be plugged into Koa. You should compose all your handlers and apply middlewares before passing the resulting handler to `toKoaMiddleware`. You only need one per application.
 
 ```js
 const Koa = require('koa')
@@ -320,9 +256,7 @@ app.use(require('koa-bodyparser')())
 
 const echo = request => request
 
-const echoMiddleware = () => echo
-
-app.use(toKoaMiddleware(echoMiddleware))
+app.use(toKoaMiddleware(echo))
 ```
 
 Import the future-based version from `koa-ring/posterus`:
@@ -333,49 +267,47 @@ const {toKoaMiddleware} = require('koa-ring/posterus')
 
 ### `mount`
 
-Routing tool. Creates a middleware mounted on a subpath. The matched part is
-subtracted from `request.url`.
+Routing tool. Creates a handler mounted on a subpath. The matched part is subtracted from `request.url`. When the path doesn't match, the handler returns `undefined`.
 
 ```js
-const {mount, compose} = require('koa-ring')
+const {mount} = require('koa-ring')
+const {or} = require('fpx')  // transitive dependency
 
-const middleware = mount('api', next => request => {
+const handler = mount('api', request => {
   console.log(request.url)  // 'api' has been stripped off
 })
 
 // Typical setup
-const apiMiddleware = mount('api', compose([
-  require('./some-endpoint'),
-  require('./another-endpoint'),
+const apiMiddleware = mount('api', or(
+  match(somePattern, require('./some-endpoint')),
+  match(somePattern, require('./other-endpoint')),
   // ...
-]))
+))
 ```
 
 Paths can be strings:
 
 ```js
-mount('api/some/endpoint', middleware)
+mount('api/some/endpoint', handler)
 ```
 
 Paths can be lists that act as loose patterns (see
 [`fpx.testBy`](https://mitranim.com/fpx/#-testby-pattern-value-)):
 
 ```js
-mount(['api', /some/, x => x === 'endpoint'], middleware)
+mount(['api', /some/, x => x === 'endpoint'], handler)
 ```
 
 ### `match`
 
-Pattern matching tool. Creates a middleware whose handler runs only when the
-request matches the provided pattern. Uses
-[`fpx.testBy`](https://mitranim.com/fpx/#-testby-pattern-value-).
+Pattern matching tool. Creates a handler that runs only when the request matches the provided pattern. Uses [`fpx.testBy`](https://mitranim.com/fpx/#-testby-pattern-value-).
 
-When the pattern doesn't match, this runs the next handler.
+When the pattern doesn't match, returns `undefined`.
 
 ```js
 const {match} = require('koa-ring')
 
-const filtered = match({url: /^[/]?api[/]echo/, method: 'POST'}, middleware)
+const filtered = match({url: /^[/]?api[/]echo/, method: 'POST'}, handler)
 ```
 
 ### Futures
@@ -387,19 +319,14 @@ imported from the optional `koa-ring/posterus` module.
 
 ```js
 const Koa = require('koa')
-const {compose, /* ... */} = require('koa-ring')
-const {toKoaMiddleware, pipeline} = require('koa-ring/posterus')
+const {toKoaMiddleware} = require('koa-ring/posterus')
 
 const app = new Koa()
 
-const middleware = next => function* handler(request) {
-  const response = yield next(request)
+app.use(toKoaMiddleware(handler))
+
+function* handler(request) {
+  const response = yield someFuture(request)
   return response
 }
-
-app.use(toKoaMiddleware(compose([
-  // ...
-  middleware,
-  // ...
-])))
 ```

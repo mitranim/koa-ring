@@ -1,50 +1,40 @@
 'use strict'
 
-const {isObject, isFunction, validate, validateEach} = require('fpx')
+const {isObject, isFunction, isPromise, validate} = require('fpx')
 const {Future, isFuture} = require('posterus')
 const {routine} = require('posterus/routine')
 const index = require('./index')
-const {toHandler, toPlainResponse, updateKoaResponse, quietExtend} = index
-
-exports.pipeline = pipeline
-function pipeline(funs) {
-  validateEach(isFunction, funs)
-  return function* asyncPipeline(value) {
-    for (const fun of funs) value = yield fun(value)
-    return value
-  }
-}
+const {toPlainResponse, isContextSettled, updateKoaContext, quietExtend} = index
 
 exports.toKoaMiddleware = toKoaMiddleware
-function toKoaMiddleware(middleware) {
-  const handler = toHandler(runNextKoaMiddleware, middleware)
+function toKoaMiddleware(handler) {
   return async function koaMiddleware(ctx, next) {
-    const request = quietExtend(ctx.request, {nextKoaMiddleware: next})
-    const response = await tieToContextLifetime(ctx, toFuture(handler(request)))
-    if (response) updateKoaResponse(ctx.response, response)
+    const request = quietExtend(ctx.request, {koaNext: next})
+    const future = toFuture(handler(request))
+    tieToContextLifetime(ctx, future)
+    const response = await future
+    if (!isContextSettled(ctx)) updateKoaContext(ctx, response)
   }
 }
 
-function* runNextKoaMiddleware(request) {
-  if (isObject(request) && request.nextKoaMiddleware) {
-    const {ctx, nextKoaMiddleware: next} = request
-    yield promiseToFuture(next())
+exports.koaNext = koaNext
+function* koaNext(request) {
+  const {ctx, koaNext} = request || {}
+  if (ctx && koaNext) {
+    yield Future.fromPromise(koaNext())
     return toPlainResponse(ctx.response)
   }
-  return null
-}
-
-function promiseToFuture(promise) {
-  return Future.init(future => {
-    promise.then(
-      result => future.settle(null, result),
-      error => future.settle(error)
-    )
-  })
+  return undefined
 }
 
 function toFuture(value) {
-  return isIterator(value) ? routine(value) : Future.fromResult(value)
+  return isFuture(value)
+    ? value
+    : isIterator(value)
+    ? routine(value)
+    : isPromise(value)
+    ? Future.fromPromise(value)
+    : Future.fromResult(value)
 }
 
 function isIterator(value) {
@@ -56,25 +46,7 @@ function isIterator(value) {
   )
 }
 
-function tieToContextLifetime(ctx, future) {
+function tieToContextLifetime({req}, future) {
   validate(isFuture, future)
-
-  function deinit() {
-    clear()
-    tied.deinit()
-  }
-
-  function clear() {
-    ctx.req.removeListener('close', deinit)
-  }
-
-  ctx.req.once('close', deinit)
-
-  const tied = future.map((error, result) => {
-    clear()
-    if (error) throw error
-    return result
-  })
-
-  return tied
+  req.once('close', future.deinit.bind(future))
 }

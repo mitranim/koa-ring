@@ -129,7 +129,8 @@
     "func-names": "off",  // would prefer exception for generators
     "func-style": ["error", "declaration"],
     // "id-length": ["error", {"min": 3}],
-    "indent": ["error", 2, {"SwitchCase": 1, "flatTernaryExpressions": true}],
+    // "indent": ["error", 2, {"SwitchCase": 1, "flatTernaryExpressions": true}],
+    "indent": ["error", 2, {"SwitchCase": 1}],
     // "key-spacing": ["error", {"align": "value"}],
     // "key-spacing": "error",
     "keyword-spacing": "error",
