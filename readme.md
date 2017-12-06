@@ -278,7 +278,7 @@ const handler = mount('api', request => {
 })
 
 // Typical setup
-const apiMiddleware = mount('api', or(
+const apiHandler = mount('api', or(
   match(somePattern, require('./some-endpoint')),
   match(somePattern, require('./other-endpoint')),
   // ...
