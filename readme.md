@@ -136,13 +136,12 @@ function* koaRingHandler(request) {
 
 // Futures can be canceled with `future.deinit()`
 function expensiveFuture(...args) {
-  return Future.init(future => {
-    const operationId = expensiveOperation(...args, (error, result) => {
-      future.settle(error, result)
-    })
-    return function onDeinit() {
-      cancelOperation(operationId)
-    }
+  const future = new Future()
+  const operationId = expensiveOperation(...args, (error, result) => {
+    future.settle(error, result)
+  })
+  return future.finally(function finalize(error) {
+    if (error) cancelOperation(operationId)
   })
 }
 

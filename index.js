@@ -13,7 +13,7 @@ function toKoaMiddleware(handler) {
   return async function koaMiddleware(ctx, next) {
     const request = quietExtend(ctx.request, {koaNext: next})
     const response = await handler(request)
-    if (!isContextSettled(ctx)) updateKoaContext(ctx, response)
+    if (isAwaitingResponse(ctx)) updateKoaContext(ctx, response)
   }
 }
 
@@ -63,7 +63,7 @@ async function koaNext(request) {
 
 exports.toPlainResponse = toPlainResponse
 function toPlainResponse(ctx) {
-  if (!isContextSettled(ctx)) return undefined
+  if (isAwaitingResponse(ctx)) return undefined
   const {response: {status, headers, body}} = ctx
   return {status, headers, body}
 }
@@ -78,9 +78,9 @@ function updateKoaContext(ctx, response) {
   if (body != null) res.body = body
 }
 
-exports.isContextSettled = isContextSettled
-function isContextSettled(ctx) {
-  return !(ctx.status === 404 && ctx.body == null)
+exports.isAwaitingResponse = isAwaitingResponse
+function isAwaitingResponse(ctx) {
+  return ctx.status === 404 && ctx.body == null
 }
 
 /**

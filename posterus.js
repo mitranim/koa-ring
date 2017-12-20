@@ -1,19 +1,25 @@
 'use strict'
 
-const {isObject, isFunction, isPromise, validate} = require('fpx')
+const {isObject, isFunction, isPromise} = require('fpx')
 const {Future, isFuture} = require('posterus')
 const {routine} = require('posterus/routine')
 const index = require('./index')
-const {toPlainResponse, isContextSettled, updateKoaContext, quietExtend} = index
+const {toPlainResponse, isAwaitingResponse, updateKoaContext, quietExtend} = index
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(handler) {
   return async function koaMiddleware(ctx, next) {
     const request = quietExtend(ctx.request, {koaNext: next})
     const future = toFuture(handler(request))
-    tieToContextLifetime(ctx, future)
-    const response = await future
-    if (!isContextSettled(ctx)) updateKoaContext(ctx, response)
+    await Future.race([
+      // If this wins the race:
+      //   * don't send any response
+      //   * the race deinits the handler's future
+      trackRequestLifetime(ctx.req),
+      future.mapResult(response => {
+        if (isAwaitingResponse(ctx)) updateKoaContext(ctx, response)
+      }),
+    ])
   }
 }
 
@@ -46,7 +52,8 @@ function isIterator(value) {
   )
 }
 
-function tieToContextLifetime({req}, future) {
-  validate(isFuture, future)
-  req.once('close', future.deinit.bind(future))
+function trackRequestLifetime(req) {
+  const future = new Future()
+  req.once('close', () => future.settle())
+  return future
 }
