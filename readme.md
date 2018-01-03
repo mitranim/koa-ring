@@ -32,7 +32,7 @@ Node:
 
 ```js
 const Koa = require('koa')
-const {toKoaMiddleware} = require('koa-ring')
+const {toKoaMiddleware, patch} = require('koa-ring')
 
 const app = new Koa()
 
@@ -42,10 +42,10 @@ function exampleMiddleware(nextHandler) {
   return async function prevHandler(request) {
     // do whatever
     // can substitute request
-    const req = request
+    const req = patch(request, {})
     const response = await nextHandler(req)
     // can substitute response
-    return response
+    return response || {status: 404}
   }
 }
 
@@ -67,7 +67,8 @@ app.use(toKoaMiddleware(handler))
 
 function* handler(request) {
   // Could be a future-based database request, etc
-  // This work is canceled if client disconnects
+  // This work can be automatically canceled if client disconnects
+  // koa-ring automatically calls future.deinit()
   const greeting = yield Future.fromResult('Hello world!')
   return {body: greeting}
 }
@@ -193,32 +194,53 @@ routes, [pattern-match](#match) on request structure, and finally adapt them
 
 ### Request
 
-Every handler is a `ƒ(request) -> response`. By default, it receives the Koa
-request (see [reference](http://koajs.com/#request)). Handlers pass requests
-to each other:
+Every handler is a function from request to response. The request is a plain JS
+dict with the following shape:
+
+```js
+interface Request {
+  url: string,
+  method: string,
+  headers: {},
+  body: any,
+  ctx: KoaContext,
+  // Unimportant fields omitted
+}
+```
+
+The context provides access to additional information and the underlying objects
+such as Node request, Node response, network socket, and so on. See the [Koa
+reference](http://koajs.com).
+
+Unlike Koa, `koa-ring` doesn't use prototype chains. The request is a plain dict
+that can be copied and patched. This allows middleware to override request
+fields without resorting to mutations:
 
 ```js
 function middleware(nextHandler) {
   return function handler(request) {
-    return nextHandler(request)
+    const url = request.url.replace(/^\/api(?=\/)/, '')
+    return nextHandler(Object.assign({}, request, {url}))
   }
 }
 ```
 
-When overriding request fields (for instance, when mounting on a different URL
-or adding new fields), use `extend`, which is a shortcut for `Object.create`:
+You can override both request and response:
 
 ```js
-const {extend} = require('koa-ring')
+const {patch} = require('koa-ring')
 
-const transformMiddleware = next => request => next(extend(request, {
-  url: request.url.replace(/^api/, ''),
-}))
+function middleware(handler) {
+  return async request => {
+    request = patch(request, {metadata: {}})
+    let response = await handler(request)
+    response = patch(response, {status: response.status || 200})
+    return response
+  }
+}
 ```
 
-This is much better than mutating or copying the request object. Copying is
-especially discouraged, as it's likely to lose important fields stored on the
-prototype chain.
+This uses `patch`, which is a non-mutating version of `Object.assign`.
 
 ### Response
 
@@ -226,7 +248,7 @@ Every handler may return a response. Responses are plain dicts with the
 following format:
 
 ```js
-type Response = {status: number, headers: {}, body: any}
+interface Response {status: number, headers: {}, body: any}
 ```
 
 Every field is optional. It's ok to return nothing; `koa-ring` will just run the next Koa middleware.

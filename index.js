@@ -1,6 +1,6 @@
 'use strict'
 
-const {testBy, slice, mapDict, isFunction, isString, isList, isFinite, isObject,
+const {testBy, slice, isFunction, isString, isList, isFinite, isObject,
   validate} = require('fpx')
 
 /**
@@ -11,7 +11,8 @@ exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(handler) {
   validate(isFunction, handler)
   return async function koaMiddleware(ctx, next) {
-    const request = quietExtend(ctx.request, {koaNext: next})
+    const request = toPlainRequest(ctx)
+    request.koaNext = next
     const response = await handler(request)
     if (isAwaitingResponse(ctx)) updateKoaContext(ctx, response)
   }
@@ -36,29 +37,42 @@ function mount(path, handler) {
     const urlSegments = splitPath(request.url)
 
     return testBy(segmentsTest, urlSegments)
-      ? handler(extend(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
+      ? handler(patch(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
       : undefined
   }
 }
 
-exports.extend = extend
-function extend(proto, values) {
-  return Object.create(proto, mapDict(enumerableValueDescriptor, values))
+exports.patch = patch
+function patch(left, right) {
+  return Object.assign({}, left, right)
 }
 
-exports.quietExtend = quietExtend
-function quietExtend(proto, values) {
-  return Object.create(proto, mapDict(nonenumerableValueDescriptor, values))
-}
-
-exports.koaNext = koaNext
-async function koaNext(request) {
+// TODO document
+exports.runKoaNext = runKoaNext
+async function runKoaNext(request) {
   const {ctx, koaNext} = request || {}
   if (ctx && koaNext) {
     await koaNext()
     return toPlainResponse(ctx)
   }
   return undefined
+}
+
+exports.toPlainRequest = toPlainRequest
+function toPlainRequest(ctx) {
+  return {
+    url: ctx.request.url,
+    method: ctx.request.method,
+    headers: ctx.request.headers,
+    body: ctx.request.body,
+    ctx,
+    inspect: inspectPlainRequest,
+  }
+}
+
+function inspectPlainRequest() {
+  const {url, method, headers, body, ctx} = this  // eslint-disable-line no-invalid-this
+  return {url, method, headers, body, ctx: ctx && '<koa context>'}
 }
 
 exports.toPlainResponse = toPlainResponse
@@ -94,12 +108,4 @@ function splitPath(path) {
 
 function drop(count, value) {
   return isList(value) ? slice(value, count) : []
-}
-
-function enumerableValueDescriptor(value) {
-  return {value, configurable: true, enumerable: true}
-}
-
-function nonenumerableValueDescriptor(value) {
-  return {value, configurable: true, enumerable: false}
 }

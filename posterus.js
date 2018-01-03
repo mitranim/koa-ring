@@ -4,31 +4,33 @@ const {isObject, isFunction, isPromise} = require('fpx')
 const {Future, isFuture} = require('posterus')
 const {routine} = require('posterus/routine')
 const index = require('./index')
-const {toPlainResponse, isAwaitingResponse, updateKoaContext, quietExtend} = index
+const {toPlainRequest, toPlainResponse, isAwaitingResponse, updateKoaContext} = index
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(handler) {
   return async function koaMiddleware(ctx, next) {
-    const request = quietExtend(ctx.request, {koaNext: next})
+    const request = toPlainRequest(ctx)
+    request.koaNext = next
     const future = toFuture(handler(request))
     await Future.race([
       // If this wins the race:
       //   * don't send any response
       //   * the race deinits the handler's future
       trackRequestLifetime(ctx.req),
-      future.mapResult(response => {
+      future.mapResult(function sendResponseIfRelevant(response) {
         if (isAwaitingResponse(ctx)) updateKoaContext(ctx, response)
       }),
     ])
   }
 }
 
-exports.koaNext = koaNext
-function* koaNext(request) {
+// TODO document
+exports.runKoaNext = runKoaNext
+function* runKoaNext(request) {
   const {ctx, koaNext} = request || {}
   if (ctx && koaNext) {
     yield Future.fromPromise(koaNext())
-    return toPlainResponse(ctx.response)
+    return toPlainResponse(ctx)
   }
   return undefined
 }

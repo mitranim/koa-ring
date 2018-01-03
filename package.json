@@ -1,6 +1,6 @@
 {
   "name": "koa-ring",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Write Koa handlers as ƒ(request) -> response, like in Clojure/Ring. Supports automatic work cancelation via Posterus futures and coroutines. Comes with routing/mounting utilities out of the box.",
   "license": "MIT",
   "keywords": [
