@@ -1,6 +1,6 @@
 'use strict'
 
-const {testBy, slice, isFunction, isString, isList, isFinite, isObject,
+const {testBy, drop, isFunction, isString, isList, isFinite, isObject,
   validate} = require('fpx')
 
 /**
@@ -9,8 +9,8 @@ const {testBy, slice, isFunction, isString, isList, isFinite, isObject,
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(handler) {
-  validate(isFunction, handler)
-  return async function koaMiddleware(ctx, next) {
+  validate(handler, isFunction)
+  return async function koaRingMiddleware(ctx, next) {
     const request = toPlainRequest(ctx)
     request.koaNext = next
     const response = await handler(request)
@@ -20,15 +20,15 @@ function toKoaMiddleware(handler) {
 
 exports.match = match
 function match(pattern, handler) {
-  validate(isFunction, handler)
-  return function matchHandler(request) {
-    return testBy(pattern, request) ? handler(request) : undefined
+  validate(handler, isFunction)
+  return function matchingHandler(request) {
+    return testBy(request, pattern) ? handler(request) : undefined
   }
 }
 
 exports.mount = mount
 function mount(path, handler) {
-  const segmentsTest = isList(path) ? path : splitPath(path)
+  const segments = isList(path) ? path : splitPath(path)
 
   return function mountedHandler(request) {
     if (!isString(request.url)) {
@@ -36,8 +36,8 @@ function mount(path, handler) {
     }
     const urlSegments = splitPath(request.url)
 
-    return testBy(segmentsTest, urlSegments)
-      ? handler(patch(request, {url: drop(segmentsTest.length, urlSegments).join('/')}))
+    return testBy(urlSegments, segments)
+      ? handler(patch(request, {url: drop(urlSegments, segments.length).join('/')}))
       : undefined
   }
 }
@@ -102,10 +102,6 @@ function isAwaitingResponse(ctx) {
  */
 
 function splitPath(path) {
-  validate(isString, path)
+  validate(path, isString)
   return path.split('/').filter(Boolean)
-}
-
-function drop(count, value) {
-  return isList(value) ? slice(value, count) : []
 }

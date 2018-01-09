@@ -8,7 +8,7 @@ const {toPlainRequest, toPlainResponse, isAwaitingResponse, updateKoaContext} = 
 
 exports.toKoaMiddleware = toKoaMiddleware
 function toKoaMiddleware(handler) {
-  return async function koaMiddleware(ctx, next) {
+  return async function koaRingMiddleware(ctx, next) {
     const request = toPlainRequest(ctx)
     request.koaNext = next
     const future = toFuture(handler(request))
