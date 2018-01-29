@@ -53,6 +53,13 @@ function exampleHandler(request) {
   // Status and headers are optional
   return {status: 200, headers: {}, body: 'Hello world!'}
 }
+
+const PORT = 9756
+
+app.listen(PORT, err => {
+  if (err) throw err
+  else console.info(`Server listening on port ${PORT}`)
+})
 ```
 
 With cancelation support:
@@ -72,6 +79,13 @@ function* handler(request) {
   const greeting = yield Future.fromResult('Hello world!')
   return {body: greeting}
 }
+
+const PORT = 9756
+
+app.listen(PORT, err => {
+  if (err) throw err
+  else console.info(`Server listening on port ${PORT}`)
+})
 ```
 
 See [API](#api) below.
