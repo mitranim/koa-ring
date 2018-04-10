@@ -1,8 +1,8 @@
 {
   "name": "koa-ring",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Write Koa handlers as ƒ(request) -> response, like in Clojure/Ring. Supports automatic work cancelation via Posterus futures and coroutines. Comes with routing/mounting utilities out of the box.",
-  "license": "MIT",
+  "main": "koa-ring",
   "keywords": [
     "koa",
     "ring",
@@ -10,11 +10,13 @@
     "routing",
     "futures",
     "coroutines",
+    "fibers",
     "cancelation"
   ],
   "dependencies": {
-    "posterus": "^0.3.0",
-    "fpx": "^0.4.0"
+    "fpx": "^0.4.5",
+    "posterus": "^0.3.3",
+    "querystring": "^0.2.0"
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",
