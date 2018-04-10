@@ -2,7 +2,7 @@
 
 Adapter library for [Koa](http://koajs.com), a popular HTTP microframework for Node.js. Allows you to write Koa handlers as `ƒ(request) -> response`, similar to [Ring](https://github.com/ring-clojure/ring) in Clojure. See [motivation](#functional-programming).
 
-Includes optional support for implicit cancelation via [Posterus](https://github.com/Mitranim/posterus) futures and coroutines. See [motivation](#cancelation).
+Includes optional support for implicit cancelation via [Posterus](https://github.com/Mitranim/posterus) futures and coroutines/fibers. See [motivation](#cancelation).
 
 ## TOC
 
@@ -69,11 +69,13 @@ With cancelation support:
 ```js
 const Koa = require('koa')
 const {toKoaMiddleware} = require('koa-ring/posterus')
+const {Future} = require('posterus')
 
 const app = new Koa()
 
 app.use(toKoaMiddleware(handler))
 
+// Implicitly converted to a Posterus fiber by koa-ring
 function* handler(request) {
   // Could be a future-based database request, etc
   // This work can be automatically canceled if client disconnects
@@ -96,11 +98,7 @@ See [API](#api) below.
 
 ### Functional Programming
 
-In Koa, request handlers are imperative functions that take a request/response
-context object, return `void` and mutate the context to send the response.
-
-In other words, Koa is a poor match for the HTTP programming model, which lends
-itself to plain functions of `ƒ(request) -> response`.
+In Koa, request handlers take a request/response context object, return `void` and mutate the context to send the response. In other words, Koa is a poor match for the HTTP programming model, which lends itself to plain functions of `ƒ(request) -> response`.
 
 Advantages of `ƒ(request) -> response`:
 
@@ -116,9 +114,7 @@ Fortunately, we can fix this. We have the technology to write functions.
 
 ### Cancelation
 
-JS promises lack cancelation, and are therefore fundamentally broken. Particularly unfit for user-facing programs such as servers.
-
-On a server, you want each incoming request to own the work it starts. When the request prematurely ends, this work must be aborted.
+JS promises lack cancelation, and are therefore fundamentally broken. Particularly unfit for user-facing programs such as servers. On a server, you want each incoming request to own the work it starts. When the request prematurely ends, this work must be aborted.
 
   * In Erlang, this tends to be the default: you create subprocesses using
     `spawn_link`, they're owned by the handler process and die with it.
@@ -194,12 +190,11 @@ const endware = () => handler
 
 The resulting handlers have a signature of `ƒ(request) -> response` and lend themselves to composition and functional transformations of requests/responses.
 
-`koa-ring` doesn't provide any special tools for middleware. Wrap your handlers into middlewares before passing the final handler to [`toKoaMiddleware`]((#tokoamiddleware) and then to `koa.use`.
+`koa-ring` doesn't provide any special tools for middleware. Wrap your handlers into middlewares before passing the final handler to [`toKoaMiddleware`](#tokoamiddleware) and then to `koa.use`.
 
 ### Request
 
-Every handler is a function from request to response. The request is a plain JS
-dict with the following shape:
+Every handler receives a request, which is a plain JS dict with the following shape:
 
 ```js
 interface Request {
@@ -222,9 +217,9 @@ interface Location {
 
 `request.ctx` is the Koa context. It provides access to additional information and the underlying objects such as Node request, Node response, network socket, and so on. See the [Koa reference](http://koajs.com).
 
-`request.location` is the parsed version of `request.url`. It's very similar to a result of Node's `require('url').parse`, but `location.query` is converted to a dict.
+`request.location` is the parsed version of `request.url`. It's very similar to a result of Node's `require('url').parse`, but with `location.query` parsed into a dict.
 
-Unlike Koa, `koa-ring` doesn't use prototype chains. The request is a plain dict. Middleware can pass modified copies:
+Unlike Koa, `koa-ring` doesn't use prototype chains. The request is a plain JS dict. Middleware can pass modified copies:
 
 ```js
 function mountingMiddleware(nextHandler) {
@@ -258,7 +253,7 @@ function patch(left, right) {
 
 ### Response
 
-Handlers return responses. A response is a plain dict with the following shape:
+Handlers return responses. A response is a plain JS dict with the following shape:
 
 ```js
 interface Response {
@@ -270,7 +265,7 @@ interface Response {
 
 Every field is optional. It's ok to return nothing; `koa-ring` will just run the next Koa middleware.
 
-Handlers may override each other's responses:
+Handlers in a middleware can easily override each other's responses:
 
 ```js
 const middleware = next => async request => {
@@ -281,7 +276,7 @@ const middleware = next => async request => {
 
 ### `toKoaMiddleware`
 
-Adapts a `koa-ring` handler to be plugged into Koa. You should compose all your handlers and apply middlewares before passing the resulting handler to `toKoaMiddleware`. You only need one per application.
+Converts a `koa-ring` handler into a Koa middleware. You should compose all your handlers and apply `koa-ring`-style middlewares before passing the resulting handler to `toKoaMiddleware`. You only need one per application.
 
 ```js
 const Koa = require('koa')
@@ -297,18 +292,13 @@ const echo = request => request
 app.use(toKoaMiddleware(echo))
 ```
 
-Import the future-based version from `koa-ring/posterus`:
-
-```js
-const {toKoaMiddleware} = require('koa-ring/posterus')
-```
+See below for the future-based version with cancelation.
 
 ## Futures
 
 See [motivation](#cancelation) for supporting futures.
 
-To use `koa-ring` with Posterus futures and coroutines, some functions must be
-imported from the optional `koa-ring/posterus` module.
+To use `koa-ring` with Posterus futures and coroutines, use the optional `koa-ring/posterus` module.
 
 ```js
 const Koa = require('koa')
@@ -326,7 +316,7 @@ function* handler(request) {
 
 ## Routing
 
-By preparsing `request.url`, `koa-ring` makes _manual_ routing much easier. You might not need a library:
+By preparsing `request.url` into `request.location`, `koa-ring` makes _manual_ routing much easier. You might not need a library:
 
 ```js
 function mainHandler(request) {
