@@ -16,6 +16,7 @@ Includes optional support for implicit cancelation via [Posterus](https://github
     * [`toKoaMiddleware`](#tokoamiddleware)
   * [Futures](#futures)
   * [Routing](#routing)
+  * [Changelog](#changelog)
   * [Misc](#misc)
 
 ## Usage
