@@ -343,6 +343,10 @@ function apiHandler(request) {
 
 ## Changelog
 
+### 0.3.1
+
+Updated to a newer version of Posterus (bugfix).
+
 ### 0.3.0
 
 Breaking: replaced routing utils with URL preparsing. Tentative.

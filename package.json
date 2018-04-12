@@ -1,6 +1,6 @@
 {
   "name": "koa-ring",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Write Koa handlers as ƒ(request) -> response, like in Clojure/Ring. Supports automatic cancelation on client disconnect via Posterus futures and fibers.",
   "main": "koa-ring",
   "keywords": [
@@ -15,7 +15,7 @@
   ],
   "dependencies": {
     "fpx": "^0.4.5",
-    "posterus": "^0.3.3",
+    "posterus": "^0.3.4",
     "querystring": "^0.2.0"
   },
   "devDependencies": {
