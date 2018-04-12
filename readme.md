@@ -329,11 +329,11 @@ function mainHandler(request) {
 function apiHandler(request) {
   const {method, location: {pathname}} = request
 
-  if (method === 'get' && /^[/]api[/]user$/.test(pathname)) {
+  if (method === 'GET' && pathname === '/api/users') {
     return userHandler(request)
   }
 
-  if (method === 'post' && /^[/]api[/]login$/.test(pathname)) {
+  if (method === 'POST' && pathname === '/api/login') {
     return loginHandler(request)
   }
 

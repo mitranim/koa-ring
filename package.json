@@ -1,7 +1,7 @@
 {
   "name": "koa-ring",
   "version": "0.3.0",
-  "description": "Write Koa handlers as ƒ(request) -> response, like in Clojure/Ring. Supports automatic work cancelation via Posterus futures and coroutines. Comes with routing/mounting utilities out of the box.",
+  "description": "Write Koa handlers as ƒ(request) -> response, like in Clojure/Ring. Supports automatic cancelation on client disconnect via Posterus futures and fibers.",
   "main": "koa-ring",
   "keywords": [
     "koa",
