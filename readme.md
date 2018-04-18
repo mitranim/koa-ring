@@ -343,6 +343,10 @@ function apiHandler(request) {
 
 ## Changelog
 
+### 0.3.2
+
+Updated dependencies.
+
 ### 0.3.1
 
 Updated to a newer version of Posterus (bugfix).
