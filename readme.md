@@ -115,24 +115,24 @@ Fortunately, we can fix this. We have the technology to write functions.
 
 ### Cancelation
 
-JS promises lack cancelation, and are therefore fundamentally broken. Particularly unfit for user-facing programs such as servers. On a server, you want each incoming request to own the work it starts. When the request prematurely ends, this work must be aborted.
+Each incoming request must keep track of the work it starts, and abort that work if the request ends prematurely. Promises lack this ability, and are therefore fundamentally broken and unfit for purpose.
 
-  * In Erlang, this tends to be the default: you create subprocesses using
-    `spawn_link`, they're owned by the handler process and die with it.
+Examples from existing languages:
 
-  * In thread-based languages, this also works as long as you don't spawn
-    another thread, as there's no analog of `spawn_link`.
+  * In Erlang, you create subprocesses using `spawn_link`; they're owned by the master process and die along with it.
 
-  * In Go, you're out of luck, as there's no support for goroutine cancelation.
+  * In Go, you propagate cancelation using `context.Context`, supported by the standard library and many 3d party libraries.
 
-  * In Node.js, you can achieve this by using cancelable async primitives, such
-    as [Posterus futures](https://github.com/Mitranim/posterus), and
-    [coroutines](https://github.com/Mitranim/posterus#fiber) built on them.
+  * In thread-based languages, there's no analog of `spawn_link` or Go context. At best, the request-handling thread may be stopped when a request ends prematurely, but this doesn't propagate to any sub-threads spawned by it.
+
+In Node.js, you can achieve this effect by using cancelable async primitives, such as [Posterus futures](https://github.com/Mitranim/posterus), and [coroutines](https://github.com/Mitranim/posterus#fiber) built on them.
 
 Concrete example:
 
 ```js
 const {Future} = require('posterus')
+
+// This is used internally by koa-ring
 // const {fiber} = require('posterus/fiber')
 
 function* koaRingHandler(request) {
