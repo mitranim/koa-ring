@@ -163,7 +163,7 @@ function* expensiveRoutine(...args) {
 }
 ```
 
-Lack of implicit cancelation leads to incorrect behavior. The client may wish to abort the work it has started; smart clients may cancel unnecessary requests to avoid wasting resources; and so on. Worse, this makes Node.js and Go servers uniquely vulnerable to a certain type of DoS attack: making the server start expensive work and immediately canceling the request to free the attacker's system resources, while the server keeps slogging.
+Lack of implicit cancelation leads to incorrect behavior. The client may wish to abort the work it has started; smart clients may cancel unnecessary requests to avoid wasting resources; and so on. Worse, this makes Node.js servers uniquely vulnerable to a certain type of DoS attack: making the server start expensive work and immediately canceling the request to free the attacker's system resources, while the server keeps slogging.
 
 Fortunately, we can fix this. We have tools for implicit ownerhip and cancelation in async operations, such as [Posterus](https://github.com/Mitranim/posterus).
 
