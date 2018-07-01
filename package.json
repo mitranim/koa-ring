@@ -13,6 +13,7 @@
     "fibers",
     "cancelation"
   ],
+  "license": "WTFPL",
   "dependencies": {
     "fpx": "^0.4",
     "posterus": "^0.4",
